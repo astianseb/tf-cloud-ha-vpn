@@ -1,5 +1,4 @@
-####### Network & subnets
-
+################ VPC Demo ##################
 resource "google_compute_network" "vpc_demo" {
   name                    = "vpc-demo"
   auto_create_subnetworks = false
@@ -23,9 +22,6 @@ resource "google_compute_subnetwork" "vpc_demo_subnet2" {
   network       = google_compute_network.vpc_demo.id
 }
 
-
-####### FIREWALL
-
 resource "google_compute_firewall" "vpc_demo_allow_internal" {
   name      = "vpc-demo-allow-internal"
   project   = google_project.project.project_id
@@ -47,7 +43,7 @@ resource "google_compute_firewall" "vpc_demo_allow_internal" {
 }
 
 resource "google_compute_firewall" "vpc_demo_allow_ssh_icmp" {
-  name      = "allow-ssh-icmp"
+  name      = "vpc-demo-allow-ssh-icmp"
   project   = google_project.project.project_id
   network   = google_compute_network.vpc_demo.name
   direction = "INGRESS"
@@ -62,9 +58,6 @@ resource "google_compute_firewall" "vpc_demo_allow_ssh_icmp" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-
-
-#### NAT
 
 resource "google_compute_router" "nat_router" {
   name    = "nat-router"
@@ -89,4 +82,58 @@ resource "google_compute_router_nat" "nat" {
     enable = true
     filter = "ERRORS_ONLY"
   }
+}
+
+
+
+################# VPC on-prem #####################
+
+resource "google_compute_network" "on_prem" {
+  name                    = "on-prem"
+  auto_create_subnetworks = false
+  mtu                     = 1460
+  project                 = google_project.project.project_id
+}
+
+resource "google_compute_subnetwork" "on_prem_subnet1" {
+  name          = "on-prem-subnet1"
+  region        = var.region_a
+  project       = google_project.project.project_id
+  ip_cidr_range = "192.168.1.0/24"
+  network       = google_compute_network.on_prem.id
+}
+
+resource "google_compute_firewall" "on_prem_allow_internal" {
+  name      = "on-prem-allow-internal"
+  project   = google_project.project.project_id
+  network   = google_compute_network.on_prem.name
+  direction = "INGRESS"
+
+  allow {
+    protocol = "tcp"
+  }
+  allow {
+    protocol = "udp"
+  }
+  allow {
+    protocol = "icmp"
+  }
+
+  source_ranges = [google_compute_subnetwork.on_prem_subnet1.ip_cidr_range]
+}
+
+resource "google_compute_firewall" "on_prem_allow_ssh_icmp" {
+  name      = "on-prem-allow-ssh-icmp"
+  project   = google_project.project.project_id
+  network   = google_compute_network.on_prem.name
+  direction = "INGRESS"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+  allow {
+    protocol = "icmp"
+  }
+  source_ranges = ["0.0.0.0/0"]
 }
